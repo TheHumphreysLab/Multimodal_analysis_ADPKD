@@ -1,9 +1,11 @@
 # **Multimodal single cell analysis on human ADPKD kidneys**
 __Yoshiharu Muto, Eryn E. Dixon, Yasuhiro Yoshimura, Haojia Wu, Kohei Omachi, Andrew J. King, Eric Olson, Marvin Gunawan, Jay Kuo, Jennifer Cox, Jeffrey H. Miner, Stephen L. Seliger, Owen M. Woodward, Paul A. Welling, Terry J. Watnick and Benjamin D. Humphreys__  
 
-This work is published on the following [manuscript](https://pubmed.ncbi.nlm.nih.gov/xxxxxxx/)
+This work is published on the following [manuscript](https://www.biorxiv.org/content/10.1101/2021.10.21.465323v1)
 ```
 Defining cellular complexity in human autosomal dominant polycystic kidney disease by multimodal single cell analysis
+Yoshiharu Muto, Eryn E. Dixon, Yasuhiro Yoshimura, Haojia Wu, Kohei Omachi, Andrew J. King, Eric Olson, Marvin Gunawan, Jay Kuo, Jennifer Cox, Jeffrey H. Miner, Stephen L. Seliger, Owen M. Woodward, Paul A. Welling, Terry J. Watnick and Benjamin D. Humphreys
+doi: https://doi.org/10.1101/2021.10.21.465323
 
 ```
 Raw fastq files and count tables can be found in GEO: <br/>
@@ -15,7 +17,7 @@ Welcome to our GitHub repository!
 Here you will find analysis scripts for our manuscript where we integrate paired snRNAseq and snATACseq from 8 ADPKD kidneys and 5 healthy adult kidney cortex samples. Please contact the corresponding author, Dr. Benjamin Humphreys, with questions or comments.  
 <br/>
 Thanks,  
-Yoshi
+Benjamin D. Humphreys, Yoshiharu Muto
 
 Visit the Humphrey's lab website:   
 www.humphreyslab.com  
