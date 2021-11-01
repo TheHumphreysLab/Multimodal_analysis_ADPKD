@@ -13,101 +13,140 @@ rnaAggr <- readRDS("PKDContAggr.rds")
 #(Supplementary Fig. 1d, Supplementary Fig. 2d) 
 
 Idents(rnaAggr) <- "celltype"
-ENDO <- subset(rnaAggr,idents = c("PKD-ENDO1","PKD-ENDO2","PKD-ENDO3","Cont-ENDO1","Cont-ENDO2","Cont-ENDO3"))
-Idents(ENDO) <- "celltype_all"
-ENDO <- subset(ENDO,idents = "ENDO")
+CNT_PC <- subset(rnaAggr,idents = c("PKD-CNT_PC","Cont-CNT_PC","PKD-PC"))
+Idents(CNT_PC) <- "celltype_all"
+CNT_PC <- subset(CNT_PC,idents = "CNT_PC")
 
-DefaultAssay(ENDO) <- "RNA"
-ENDO <- NormalizeData(ENDO)
-ENDO <- FindVariableFeatures(ENDO, selection.method = "vst", nfeatures = 3000)
-ENDO <- ScaleData(ENDO, verbose = FALSE)
-ENDO <- RunPCA(ENDO, verbose = FALSE)
-ENDO <- RunHarmony(ENDO,group.by.vars = c("orig.ident"))
-ENDO <- RunUMAP(ENDO, reduction = "harmony", dims = 1:10)
-ENDO <- FindNeighbors(ENDO, reduction = "harmony", dims = 1:10)
-ENDO <- FindClusters(ENDO, resolution = 0.2)
-fig5a_1 <- DimPlot(ENDO,label = T,repel=T)+NoLegend() #600x500
-Idents(ENDO) <- "disease"
-levels(ENDO) <- c("PKD","control")
-fig5a_2 <- DimPlot(ENDO)+NoLegend() #600x500
+CNT_PC <- NormalizeData(CNT_PC)
+CNT_PC <- FindVariableFeatures(CNT_PC, selection.method = "vst", nfeatures = 3000)
+CNT_PC <- ScaleData(CNT_PC, verbose = FALSE)
+CNT_PC <- RunPCA(CNT_PC, verbose = FALSE)
+CNT_PC <- RunHarmony(CNT_PC,group.by.vars = c("orig.ident"))
+CNT_PC <- RunUMAP(CNT_PC, reduction = "harmony", dims = 1:20)
+CNT_PC <- FindNeighbors(CNT_PC, reduction = "harmony", dims = 1:20)
+CNT_PC <- FindClusters(CNT_PC, resolution = 0.3)
+fig5a_2 <- DimPlot(CNT_PC,label = T,repel=T)+NoLegend() #550x440
 
-Idents(ENDO) <- "seurat_clusters"
-new.cluster.ids <- c("EC_SELE","AEC","LowQC","CEC","VEC","LEC")
-names(new.cluster.ids) <- levels(ENDO)
-ENDO <- RenameIdents(ENDO, new.cluster.ids)
-levels(ENDO) <- c("CEC","VEC","AEC","EC_SELE","LEC","LowQC")
-ENDO@meta.data[["subtype"]] <- ENDO@active.ident
-saveRDS(ENDO,"ENDO.rds")
+Idents(CNT_PC) <- "seurat_clusters"
+new.cluster.ids <- c("PKD-PC1","N-CNT","N-PC","LowQC1","PKD-PC2","PKD-CNT","LowQC2","PKD-PC3")
+names(new.cluster.ids) <- levels(CNT_PC)
+CNT_PC <- RenameIdents(CNT_PC, new.cluster.ids)
+levels(CNT_PC) <- c("N-CNT","PKD-CNT","N-PC","PKD-PC1","PKD-PC2","PKD-PC3","LowQC1","LowQC2")
+CNT_PC@meta.data[["subtype"]] <- CNT_PC@active.ident
+saveRDS(CNT_PC,"CNT_PC.rds")
+
+Idents(CNT_PC) <- "subtype"
+DimPlot(CNT_PC,label = T)+NoLegend()
+Idents(CNT_PC) <- "disease"
+fig5a_3 <- DimPlot(CNT_PC) #450x330
+
+marker <- FindAllMarkers(CNT_PC,only.pos = T,logfc.threshold = 0.25)
+
+Idents(CNT_PC) <- "subtype"
+CNT_PC2 <- subset(CNT_PC,idents = c("LowQC1","LowQC2"),invert=T)
+
+features <- c("SLC8A1","CALB1","MET","AQP2","SCNN1G","CFTR",
+              "HRH1","CD44","ALOX5","GPRC5A","MIR31HG",
+              "LCN2","MFSD2A","CXCL2",
+              "PTGFR","ROBO2","DOCK10","LIN7A")
+
+features2 <- c("CDKN1A","CDKN1B","CDKN1C","CDKN2A","CDKN2B","CDKN2C","CDKN2D","CDKN3")
+
+levels(CNT_PC2) <- rev(levels(CNT_PC2))
+fig5b <- DotPlot(CNT_PC2, features = features, cols = c("lightyellow","royalblue")) +
+  RotatedAxis() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) #700x450
+figS9a <- DotPlot(CNT_PC2, features = features2, cols = c("lightyellow","royalblue")) +
+  RotatedAxis() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) #640x500
+levels(CNT_PC2) <- rev(levels(CNT_PC2))
 
 #Vision
 library(VISION)
-signatures <- "/vision/h.all.v6.2.symbols.gmt"
-vision.obj <- Vision(ENDO, signatures = signatures)
+signatures <- "/h.all.v6.2.symbols.gmt"
+vision.obj <- Vision(CNT_PC, signatures = signatures)
 vision.obj <- analyze(vision.obj)
 
 sigScores <- getSignatureScores(vision.obj)
 sigScores <- as.data.frame(sigScores)
+CNT_PC <- AddMetaData(CNT_PC,sigScores2)
 
-ENDO <- AddMetaData(ENDO,sigScores)
-fig5d <- FeaturePlot(ENDO,"HALLMARK_INFLAMMATORY_RESPONSE",cols =jdb_palette("brewer_yes"),order = T)
+fig5c_1 <- FeaturePlot(CNT_PC,"HALLMARK_GLYCOLYSIS",cols =jdb_palette("brewer_yes")) #550x500
+fig5c_2 <- FeaturePlot(CNT_PC,"HALLMARK_OXIDATIVE_PHOSPHORYLATION",cols =jdb_palette("brewer_yes"))
+fig5d_3 <- FeaturePlot(CNT_PC,"HALLMARK_INFLAMMATORY_RESPONSE",cols =jdb_palette("brewer_yes"))
+fig5d_4 <- FeaturePlot(CNT_PC,"HALLMARK_IL6_JAK_STAT3_SIGNALING" ,cols =jdb_palette("brewer_yes"))
 
-ENDO2 <- subset(ENDO,idents = c("LowQC"),invert=T)
-
-features <- c("EMCN","HECW2","ITGA8","NRG3","DNASE1L3","CEACAM1","ADGRB3",
-               "ADAMTS6","VEGFC","PDE3A","NKAIN2","ANO2","VWF","HIF1A","SELE","VCAM1",
-              "MMRN1","PROX1","RELN","CCL21")
-
-levels(ENDO2) <- rev(levels(ENDO2))
-fig5b <- DotPlot(ENDO2, features = features, cols = c("lightyellow","royalblue")) +
-  RotatedAxis() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1)) #750x450
-
-levels(ENDO2) <- rev(levels(ENDO2))
-
-fig5c_1 <- FeaturePlot(ENDO,"SELE",pt.size = 0.3) #600x500
-fig5c_2 <- FeaturePlot(ENDO,"VCAM1",pt.size = 0.3) #600x500
-fig5c_3 <- FeaturePlot(ENDO,"ICAM1",pt.size = 0.3) #600x500
-
-fig5e_1 <- FeaturePlot(rnaAggr,"DHH",pt.size = 0.5,order=T,raster=F) #600x500
-fig5e_2 <- FeaturePlot(ENDO,"DHH",pt.size = 1,order=T) #600x500
-
-##################################### ATAC-seq data ########################################
-
-library(Seurat)
-library(Signac) 
+#Pseudotime trajectory
 library(monocle3)
-library(cicero)
+library(dplyr)
+library(Matrix)
 library(BuenColors)
-library(EnsDb.Hsapiens.v86)
 set.seed(1234)
-sub_atac <- readRDS("pkd_contATAC_Aggr_sub80.rds")
-ENDO_ATAC <- subset(sub_atac,idents = "ENDO")
 
-Idents(ENDO_ATAC) <- "disease"
-DefaultAssay(ENDO_ATAC) <- "peaks"
-ENDO_ATAC_peakMarker <- FindAllMarkers(ENDO_ATAC,only.pos = T)
-test <- ClosestFeature(ENDO_ATAC, regions = ENDO_ATAC_peakMarker$gene)
-ENDO_ATAC_peakMarker <- cbind(ENDO_ATAC_peakMarker,test[,c(2,8)])
+Idents(CNT_PC) <- "disease"
+CNT_PC2 <- subset(CNT_PC,idents = "PKD")
+Idents(CNT_PC2) <- "subtype"
+CNT_PC2 <- subset(CNT_PC2,idents = c("LowQC1","LowQC2"),invert=T)
 
-DefaultAssay(ENDO_ATAC) <- "chromvar"
-ENDO_ATAC_chromvarMarker <- FindAllMarkers(ENDO_ATAC,only.pos = T, logfc.threshold = 0.25)
+count_data <- GetAssayData(CNT_PC2, assay = "RNA",slot = "counts")
 
-library(BSgenome.Hsapiens.UCSC.hg38)
-library(JASPAR2018)
-library(TFBSTools)
+gene_metadata <- as.data.frame(rownames(count_data))
+colnames(gene_metadata) <- "gene_short_name"
+rownames(gene_metadata) <- gene_metadata$gene_short_name
 
-pfm <- getMatrixSet(
-  x = JASPAR2018,
-  opts = list(species = 9606, all_versions = T)
-)
+cds <- new_cell_data_set(as(count_data, "sparseMatrix"),
+                         cell_metadata = CNT_PC2@meta.data,
+                         gene_metadata = gene_metadata)
+cds <- preprocess_cds(cds, num_dim =20)
+plot_pc_variance_explained(cds)
+cds = align_cds(cds, num_dim = 20, alignment_group = "orig.ident")
+cds = reduce_dimension(cds,preprocess_method = "Aligned")
+fig5e_1 <- plot_cells(cds, color_cells_by="subtype", 
+                      group_label_size = 4,show_trajectory_graph = F,
+                      label_cell_groups =F) #png: 600x500
+cds <- cluster_cells(cds)
+cds <- learn_graph(cds,use_partition = T)
+cds <- order_cells(cds) 
+fig5e_2 <- plot_cells(cds,
+           color_cells_by = "pseudotime",
+           label_groups_by_cluster=FALSE,
+           label_leaves=FALSE,
+           label_branch_points=FALSE,
+           show_trajectory_graph=T) #png 600x500
 
-x <- NULL                        
-for (i in ENDO_ATAC_chromvarMarker$gene) { 
-  x <- c(x,pfm@listData[[i]]@name)
-}
-ENDO_ATAC_chromvarMarker$gene_name <- x
+#subset branch toward PKD-PC1
+cds_sub1 <- choose_graph_segments(cds,clear_cds = F)
 
-Idents(ENDO_ATAC) <- "disease"
-levels(ENDO_ATAC) <- c("PKD","Cont")
-fig5e_rela <- VlnPlot(ENDO_ATAC,"MA0107.1",pt.size=0) #RELA 500x500 
-fig5e_fosjun <- VlnPlot(ENDO_ATAC,"MA0099.3",pt.size=0) #STAT3 500x500
+genes <- c("SLC8A1","GPRC5A")
+lineage_cds <- cds_sub1[rowData(cds_sub1)$gene_short_name %in% genes,]
+fig5f_1 <- plot_genes_in_pseudotime(lineage_cds,
+                         color_cells_by="subtype",
+                         min_expr=1,
+                         cell_size=0.1,
+                         trend_formula = "~ splines::ns(pseudotime, df=4)") #480x560
+
+#subset branch toward PKD-PC2
+cds_sub2 <- choose_graph_segments(cds,clear_cds = F)
+
+genes <- c("SLC8A1","MIR31HG")
+lineage_cds <- cds_sub2[rowData(cds_sub2)$gene_short_name %in% genes,]
+fig5f_2 <- plot_genes_in_pseudotime(lineage_cds,
+                                    color_cells_by="subtype",
+                                    min_expr=1,
+                                    cell_size=0.1,
+                                    trend_formula = "~ splines::ns(pseudotime, df=4)") #480x560
+
+
+fig5g <- FeaturePlot(CNT_PC,"GPRC5A") #550x440
+
+figS9b <- FeaturePlot(CNT_PC,"CDKN2A",pt.size = 0.5,order=T) #550x440
+figS9c <- FeaturePlot(CNT_PC,"MIR31HG",pt.size = 0.5,order=T) #550x440
+
+FigS10b <- FeaturePlot(rnaAggr,"ROR1",split.by = "disease") #1000x500
+Idents(rnaAggr) <- "disease"
+levels(rnaAggr) <- c("PKD","control")
+FigS10c <- VlnPlot(rnaAggr,"ROR1",pt.size = 0.1) #700x550
+
+FigS12a <- FeaturePlot(rnaAggr,"RDH10") #600x550
+FigS12b <- FeaturePlot(CNT_PC,"RDH10")
+

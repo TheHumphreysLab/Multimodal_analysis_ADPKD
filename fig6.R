@@ -1,152 +1,186 @@
 library(Seurat)
-library(ggplot2)
-library(sctransform)
-library(harmony)
-library(Rcpp)
-library(dplyr)
-library(BuenColors)
-set.seed(1234)
-
-rnaAggr <- readRDS("PKDContAggr.rds")
-
-#The target cell type subset using the annotations on an integrated dataset (Fig. 1b) was then further subset with the annotations on each dataset to extract cell type with high confidence. 
-#(Supplementary Fig. 1d, Supplementary Fig. 2d) 
-
-Idents(rnaAggr) <- "celltype"
-CNT_PC <- subset(rnaAggr,idents = c("PKD-CNT_PC","Cont-CNT_PC","PKD-PC"))
-Idents(CNT_PC) <- "celltype_all"
-CNT_PC <- subset(CNT_PC,idents = "CNT_PC")
-
-CNT_PC <- NormalizeData(CNT_PC)
-CNT_PC <- FindVariableFeatures(CNT_PC, selection.method = "vst", nfeatures = 3000)
-CNT_PC <- ScaleData(CNT_PC, verbose = FALSE)
-CNT_PC <- RunPCA(CNT_PC, verbose = FALSE)
-CNT_PC <- RunHarmony(CNT_PC,group.by.vars = c("orig.ident"))
-CNT_PC <- RunUMAP(CNT_PC, reduction = "harmony", dims = 1:20)
-CNT_PC <- FindNeighbors(CNT_PC, reduction = "harmony", dims = 1:20)
-CNT_PC <- FindClusters(CNT_PC, resolution = 0.3)
-fig6a_2 <- DimPlot(CNT_PC,label = T,repel=T)+NoLegend() #550x440
-
-Idents(CNT_PC) <- "seurat_clusters"
-new.cluster.ids <- c("PKD-PC1","N-CNT","N-PC","LowQC1","PKD-PC2","PKD-CNT","LowQC2","PKD-PC3")
-names(new.cluster.ids) <- levels(CNT_PC)
-CNT_PC <- RenameIdents(CNT_PC, new.cluster.ids)
-levels(CNT_PC) <- c("N-CNT","PKD-CNT","N-PC","PKD-PC1","PKD-PC2","PKD-PC3","LowQC1","LowQC2")
-CNT_PC@meta.data[["subtype"]] <- CNT_PC@active.ident
-saveRDS(CNT_PC,"CNT_PC.rds")
-
-Idents(CNT_PC) <- "subtype"
-DimPlot(CNT_PC,label = T)+NoLegend()
-Idents(CNT_PC) <- "disease"
-fig6a_3 <- DimPlot(CNT_PC) #450x330
-
-marker <- FindAllMarkers(CNT_PC,only.pos = T,logfc.threshold = 0.25)
-
-Idents(CNT_PC) <- "subtype"
-CNT_PC2 <- subset(CNT_PC,idents = c("LowQC1","LowQC2"),invert=T)
-
-features <- c("SLC8A1","CALB1","MET","AQP2","SCNN1G","CFTR",
-              "HRH1","CD44","ALOX5","GPRC5A","MIR31HG",
-              "LCN2","MFSD2A","CXCL2",
-              "PTGFR","ROBO2","DOCK10","LIN7A")
-
-features2 <- c("CDKN1A","CDKN1B","CDKN1C","CDKN2A","CDKN2B","CDKN2C","CDKN2D","CDKN3")
-
-levels(CNT_PC2) <- rev(levels(CNT_PC2))
-fig6b <- DotPlot(CNT_PC2, features = features, cols = c("lightyellow","royalblue")) +
-  RotatedAxis() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1)) #700x450
-figS7a <- DotPlot(CNT_PC2, features = features2, cols = c("lightyellow","royalblue")) +
-  RotatedAxis() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1)) #640x500
-levels(CNT_PC2) <- rev(levels(CNT_PC2))
-
-#Vision
-library(VISION)
-signatures <- "/Users/mutouyoshiharu/Desktop/PKD_seq/Fig_v3/fig.3/vision/h.all.v6.2.symbols.gmt"
-vision.obj <- Vision(CNT_PC, signatures = signatures)
-vision.obj <- analyze(vision.obj)
-
-sigScores <- getSignatureScores(vision.obj)
-sigScores <- as.data.frame(sigScores)
-CNT_PC <- AddMetaData(CNT_PC,sigScores2)
-
-fig6c_1 <- FeaturePlot(CNT_PC,"HALLMARK_GLYCOLYSIS",cols =jdb_palette("brewer_yes")) #550x500
-fig6c_2 <- FeaturePlot(CNT_PC,"HALLMARK_OXIDATIVE_PHOSPHORYLATION",cols =jdb_palette("brewer_yes"))
-fig6d_3 <- FeaturePlot(CNT_PC,"HALLMARK_INFLAMMATORY_RESPONSE",cols =jdb_palette("brewer_yes"))
-fig6d_4 <- FeaturePlot(CNT_PC,"HALLMARK_IL6_JAK_STAT3_SIGNALING" ,cols =jdb_palette("brewer_yes"))
-
-#Pseudotime trajectory
+library(Signac) 
 library(monocle3)
-library(dplyr)
-library(Matrix)
+library(cicero)
 library(BuenColors)
+library(EnsDb.Hsapiens.v86)
+library(here)
 set.seed(1234)
 
-Idents(CNT_PC) <- "disease"
-CNT_PC2 <- subset(CNT_PC,idents = "PKD")
-Idents(CNT_PC2) <- "subtype"
-CNT_PC2 <- subset(CNT_PC2,idents = c("LowQC1","LowQC2"),invert=T)
+sub_atac <- readRDS("pkd_contATAC_Aggr_sub80.rds")
+CNT_PCatac <- subset(sub_atac,idents = "CNT_PC")
 
-count_data <- GetAssayData(CNT_PC2, assay = "RNA",slot = "counts")
+Idents(sub_atac) <- "disease"
+levels(sub_atac) <- c("PKD","Cont")
+fig6a_1 <- DimPlot(sub_atac,raster=FALSE) #450x330
 
-gene_metadata <- as.data.frame(rownames(count_data))
-colnames(gene_metadata) <- "gene_short_name"
-rownames(gene_metadata) <- gene_metadata$gene_short_name
+DefaultAssay(CNT_PCatac) <- "peaks"
+CNT_PCatac <- RunUMAP(CNT_PCatac, dims = 2:20, reduction = 'harmony')
+CNT_PCatac <- FindNeighbors(object = CNT_PCatac, reduction = "harmony", dims = 2:20)
+CNT_PCatac <- FindClusters(object = CNT_PCatac, verbose = FALSE, algorithm = 3,resolution = 0.2)
 
-cds <- new_cell_data_set(as(count_data, "sparseMatrix"),
-                         cell_metadata = CNT_PC2@meta.data,
-                         gene_metadata = gene_metadata)
-cds <- preprocess_cds(cds, num_dim =20)
-plot_pc_variance_explained(cds)
-cds = align_cds(cds, num_dim = 20, alignment_group = "orig.ident")
-cds = reduce_dimension(cds,preprocess_method = "Aligned")
-fig6e_1 <- plot_cells(cds, color_cells_by="subtype", 
-                      group_label_size = 4,show_trajectory_graph = F,
-                      label_cell_groups =F) #png: 600x500
-cds <- cluster_cells(cds)
-cds <- learn_graph(cds,use_partition = T)
-cds <- order_cells(cds) 
-fig6e_2 <- plot_cells(cds,
-           color_cells_by = "pseudotime",
-           label_groups_by_cluster=FALSE,
-           label_leaves=FALSE,
-           label_branch_points=FALSE,
-           show_trajectory_graph=T) #png 600x500
+#Annotation of subtypes
+Idents(CNT_PCatac) <- "seurat_clusters"
+new.cluster.ids <- c("N-CNT","N-PC","PKD-PC")
+names(new.cluster.ids) <- levels(CNT_PCatac)
+CNT_PCatac <- RenameIdents(CNT_PCatac, new.cluster.ids)
+CNT_PCatac@meta.data[["subtype"]] <- CNT_PCatac@active.ident
+saveRDS(CNT_PCatac,"CNT_PCatac.rds")
 
-#subset branch toward PKD-PC1
-cds_sub1 <- choose_graph_segments(cds,clear_cds = F)
+Idents(CNT_PCatac) <- "subtype"
+fig6a_2 <- DimPlot(CNT_PCatac)+NoLegend() #550x440
+Idents(CNT_PCatac) <- "disease"
+levels(CNT_PCatac) <- c("PKD","Cont")
+fig6a_3 <- DimPlot(CNT_PCatac)+NoLegend()
 
-genes <- c("SLC8A1","GPRC5A")
-lineage_cds <- cds_sub1[rowData(cds_sub1)$gene_short_name %in% genes,]
-fig6f_1 <- plot_genes_in_pseudotime(lineage_cds,
-                         color_cells_by="subtype",
-                         min_expr=1,
-                         cell_size=0.1,
-                         trend_formula = "~ splines::ns(pseudotime, df=4)") #480x560
+#Dot plot of gene activities
+Idents(CNT_PCatac) <- "subtype"
+DefaultAssay(CNT_PCatac) <- "RNA"
+features <- c("SLC8A1","FXYD2","CALB1","AQP2","SCNN1G",
+              "HRH1","CD44","GPRC5A","ROR1")
 
-#subset branch toward PKD-PC2
-cds_sub2 <- choose_graph_segments(cds,clear_cds = F)
+levels(CNT_PCatac) <- rev(levels(CNT_PCatac))
+fig6b <- DotPlot(CNT_PCatac, features = features, cols = c("lightyellow","royalblue")) +
+  RotatedAxis() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) #600x450
+levels(CNT_PCatac) <- rev(levels(CNT_PCatac))
 
-genes <- c("SLC8A1","MIR31HG")
-lineage_cds <- cds_sub2[rowData(cds_sub2)$gene_short_name %in% genes,]
-fig6f_2 <- plot_genes_in_pseudotime(lineage_cds,
-                                    color_cells_by="subtype",
-                                    min_expr=1,
-                                    cell_size=0.1,
-                                    trend_formula = "~ splines::ns(pseudotime, df=4)") #480x560
+DefaultAssay(CNT_PCatac) <- "chromvar"
+fig6c_1 <- FeaturePlot(CNT_PCatac,"MA0105.3",cols =jdb_palette("brewer_yes")) #550x500
+fig6c_2 <- FeaturePlot(CNT_PCatac,"MA0107.1",cols =jdb_palette("brewer_yes")) #550x500
+fig6c_3 <- FeaturePlot(CNT_PCatac,"MA0808.1",cols =jdb_palette("brewer_yes")) #550x500 tead3
 
+fig6f_1 <- FeaturePlot(CNT_PCatac,"MA0018.3",cols =jdb_palette("brewer_yes")) #550x500 CREB1
+fig6f_2 <- FeaturePlot(CNT_PCatac,"MA1149.1",cols =jdb_palette("brewer_yes")) #550x500 RARA::RXRG
+levels(CNT_PCatac) <- c("PKD","Cont")
+fig6f_3 <- VlnPlot(CNT_PCatac,"MA0018.3",pt.size = 0) #550x500 CREB1
+fig6f_4 <- VlnPlot(CNT_PCatac,"MA1149.1",pt.size = 0) #550x500 RARA::RXRG
 
-fig6g <- FeaturePlot(CNT_PC,"GPRC5A") #550x440
+DefaultAssay(CNT_PCatac) <- "peaks"
+Idents(CNT_PCatac) <- "subtype"
+CNT_PCatac_peakMarker <- FindAllMarkers(CNT_PCatac,only.pos = T,min.pct = 0.05) 
+test <- ClosestFeature(CNT_PCatac, regions = CNT_PCatac_peakMarker$gene)
+CNT_PCatac_peakMarker <- cbind(CNT_PCatac_peakMarker,test[,c(2,8)])
 
-figS7b <- FeaturePlot(CNT_PC,"CDKN2A",pt.size = 0.5,order=T) #550x440
-figS7c <- FeaturePlot(CNT_PC,"MIR31HG",pt.size = 0.5,order=T) #550x440
+DefaultAssay(CNT_PCatac) <- "chromvar"
+CNT_PCatac_chromvarMarker <- FindAllMarkers(CNT_PCatac,only.pos = T,logfc.threshold = 0.25)
+library(BSgenome.Hsapiens.UCSC.hg38)
+library(JASPAR2018)
+library(TFBSTools)
+pfm <- getMatrixSet(
+  x = JASPAR2018,
+  opts = list(species = 9606, all_versions = F)
+)
 
-FigS6b <- FeaturePlot(rnaAggr,"ROR1",split.by = "disease") #1000x500
-Idents(rnaAggr) <- "disease"
-levels(rnaAggr) <- c("PKD","control")
-FigS6c <- VlnPlot(rnaAggr,"ROR1",pt.size = 0.1) #700x550
+x <- NULL                        
+for (i in CNT_PCatac_chromvarMarker$gene) { 
+  x <- c(x,pfm@listData[[i]]@name)
+}
+CNT_PCatac_chromvarMarker$gene_name <- x
 
-FigS8a <- FeaturePlot(rnaAggr,"RDH10") #600x550
-FigS8b <- FeaturePlot(CNT_PC,"RDH10")
+#Coverage plots
+
+DefaultAssay(CNT_PCatac) <- "peaks"
+Idents(CNT_PCatac) <- "subtype"
+
+fig6e_2 <- CoveragePlot(
+  object = CNT_PCatac,
+  region = "chr12-12890233-12893174",
+  annotation = T,
+  peaks = T,
+  group.by = "subtype",
+  extend.upstream = 1000,
+  extend.downstream = 1000,
+) #330x530
+
+fig6e_3 <- CoveragePlot(
+  object = CNT_PCatac,
+  region = "chr12-12871973-12873059",
+  annotation = T,
+  peaks = T,
+  group.by = "subtype",
+  extend.upstream = 1000,
+  extend.downstream = 1000,
+) #330x530
+
+figS7d_2 <- CoveragePlot(
+  object = CNT_PCatac,
+  region = "chr9-21994180-21996144",
+  annotation = T,
+  peaks = T,
+  extend.upstream = 3000,
+  extend.downstream = 3000,
+) #600x600
+
+figS7d_3 <- CoveragePlot(
+  object = CNT_PCatac,
+  region = "chr9-21684839-21685331",
+  annotation = T,
+  peaks = T,
+  extend.upstream = 3000,
+  extend.downstream = 3000,
+) #600x600
+
+figS7d_4 <- CoveragePlot(
+  object = CNT_PCatac,
+  region = "chr9-21559035-21560436",
+  annotation = T,
+  peaks = T,
+  extend.upstream = 3000,
+  extend.downstream = 3000,
+) #600x600
+
+#CCAN
+Idents(sub_atac) <- "disease"
+pkd <- subset(sub_atac,idents = "PKD")
+DefaultAssay(pkd) <- "peaks"
+count_data <- GetAssayData(pkd, slot = "counts")
+summ <- summary(count_data)
+summ_frame <- data.frame(peak = rownames(count_data)[summ$i],
+                         cell.id = colnames(count_data)[summ$j],
+                         count = summ$x)
+
+# create cell data set object with cicero constructor
+input_cds <- make_atac_cds(summ_frame, binarize = F)
+meta <- pkd@meta.data
+meta$cells <- rownames(meta)
+metanames <- rownames(meta)
+meta <- merge(input_cds@colData,meta,by.x="cells", by.y="cells")
+rownames(meta) <- meta@listData[["cells"]]
+input_cds@colData <- meta
+input_cds <- detect_genes(input_cds)
+input_cds <- estimate_size_factors(input_cds)
+input_cds <- preprocess_cds(input_cds, method = "LSI")
+input_cds <- reduce_dimension(input_cds, reduction_method = 'UMAP', 
+                              preprocess_method = "LSI")
+umap_coords <- reducedDims(input_cds)$UMAP
+cicero_cds <- make_cicero_cds(input_cds, reduced_coordinates = umap_coords)
+
+contigs <- read.table("/contigLengths.txt")
+contigs$V1 <- paste0("chr",contigs$V1)
+contigs <- contigs[,c(1,5)]
+contigs <- subset(contigs, V1 %in% "chr12")
+conns <- run_cicero(cicero_cds, contigs)
+
+gene_annotation <- read.table("/human_hg38_annotation.txt")
+gene_annotation$feature <- as.character(gene_annotation$feature)
+
+fig6e_1 <- plot_connections(conns, "chr12", 12870000, 12895000,
+                 gene_model = gene_annotation,
+                 coaccess_cutoff = .2, 
+                 connection_width = .5, 
+                 collapseTranscripts = "longest" ) #600x300
+
+#CCAN for p16/MIR31HG (chr9)
+contigs <- read.table("/contigLengths.txt")
+contigs$V1 <- paste0("chr",contigs$V1)
+contigs <- contigs[,c(1,5)]
+contigs <- subset(contigs, V1 %in% "chr9")
+conns <- run_cicero(cicero_cds, contigs)
+
+figS9d_1 <- plot_connections(conns, "chr9", 21400000,22050000,
+                 gene_model = gene_annotation,
+                 coaccess_cutoff = .2, 
+                 connection_width = .5, 
+                 collapseTranscripts = "longest" ) #600x300
 
