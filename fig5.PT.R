@@ -78,9 +78,9 @@ fig5c <- DotPlot(PTC4, features = features, cols = c("lightyellow","royalblue"))
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) #700x450
 levels(PTC4) <- rev(levels(PTC4))
 
-fig5d1 <- VlnPlot(PTC4,"CUBN")+NoLegend()
-fig5d2 <- VlnPlot(PTC4,"LRP2")+NoLegend()
-fig5d3 <- VlnPlot(PTC4,"VCAM1")+NoLegend()
+fig5e1 <- VlnPlot(PTC4,"CUBN")+NoLegend()
+fig5e2 <- VlnPlot(PTC4,"LRP2")+NoLegend()
+fig5e3 <- VlnPlot(PTC4,"VCAM1")+NoLegend()
 
 #Transfer the PT subtype identity (N-PTC/FR-PTC in control and PT1/2/3/4 in ADPKD) to whole PT dataset
 PTC1subtype <- PTC1@meta.data[,c(1,18)] #N-PTC/FR-PTC in control
@@ -136,7 +136,7 @@ merged <- merge(Avg_mousePT,Avg_humanPT,by = "HGNC.symbol") #1648 genes left
 rownames(merged) <- merged$HGNC.symbol
 merged <- merged[,3:12]
 cor_merge <- cor(merged) #Pearson correlation
-fig5f <- pheatmap::pheatmap(cor_merge[1:4,5:10],cluster_rows = F,cluster_cols = F,border_color = "black") #700x380
+fig5d <- pheatmap::pheatmap(cor_merge[1:4,5:10],cluster_rows = F,cluster_cols = F,border_color = "black") #700x380
 
 ######################################## Gene set enrichment analysis(VISION) ################################################
 library(VISION)
