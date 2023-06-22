@@ -1,0 +1,25 @@
+library(Seurat)
+library(dplyr)
+library(harmony)
+counts <- readRDS("/path/to/GSE185948_count_RNA") #download from GSE185948
+metadata <- read.csv("/path/to/GSE185948_metadata_RNA.csv")  #download from GSE185948
+rownames(metadata) <- metadata$name
+PKD <- CreateSeuratObject(counts = counts,assay = "RNA",meta.data = metadata)
+PKD <- NormalizeData(PKD)
+PKD <- FindVariableFeatures(PKD, selection.method = "vst", nfeatures = 3000)
+PKD <- ScaleData(PKD, verbose = FALSE)
+PKD <- RunPCA(PKD, verbose = FALSE)
+PKD <- RunHarmony(PKD,group.by.vars = "patient")
+PKD <- RunUMAP(PKD, reduction = "harmony", dims = 1:20)
+PKD <- FindNeighbors(PKD, reduction = "harmony", dims = 1:20)
+PKD <- FindClusters(PKD, resolution = 0.3)
+DimPlot(PKD,label = T)
+DimPlot(PKD,label = T,repel=T,group.by = "celltype")+NoLegend()
+#Slightly different clustering from the fig in original MS depending on versions of R packages.
+#To completely same clustering on the manuscript figure,
+PKD@reductions[["umap"]]@cell.embeddings <- as.matrix(metadata[,c(9,10)]) #umap_1 and 2
+DimPlot(PKD,label = T,repel=T,group.by = "celltype")+NoLegend()
+
+
+
+
