@@ -18,6 +18,8 @@ DimPlot(PKD,label = T,repel=T,group.by = "celltype")+NoLegend()
 #Slightly different clustering from the fig in original MS depending on versions of R packages.
 #To completely same clustering on the manuscript figure,
 PKD@reductions[["umap"]]@cell.embeddings <- as.matrix(metadata[,c(9,10)]) #umap_1 and 2
+Idents(PKD) <- "celltype"
+levels(PKD) <- c("PT1","PT2","PEC","TAL1","TAL2","DCT","CNT_PC","ICA","ICB","PODO","ENDO","FIB","LEUK","URO1","URO2")
 DimPlot(PKD,label = T,repel=T,group.by = "celltype")+NoLegend()
 
 
